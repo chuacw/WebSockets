@@ -722,15 +722,10 @@ begin
     User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/27.0.1453.116 Safari/537.36
     Cookie: __utma=1.2040118404.1366961318.1366961318.1366961318.1; __utmc=1; __utmz=1.1366961318.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); deviceorder=0123456789101112; MultiTouchEnabled=false; device=3; network_type=0
     }
-      // 1st, try to do socketio specific connection
-
-      // connect and upgrade
-
-      // check upgrade succesful
 
 
-      // 2nd, get websocket response
-        // Response.RawHeaders.Text := IOHandler.InputBufferAsString();
+
+
       case FRequestType of
         wsrtGet: Get(LURL, LStreamResponse, [101]);
         wsrtPost: begin
@@ -834,15 +829,7 @@ begin
     AFailedReason := '';
     Assert(Connected);
 
-//    if SocketIOCompatible then
-//    begin
-//      FSocketIOContext := TSocketIOContext.Create(Self);
-//      (FSocketIOContext as TSocketIOContext).ConnectSend := True;  //connect already send via url? GET /socket.io/1/websocket/9elrbEFqiimV29QAM6T-
-//      FSocketIO.WriteConnect(FSocketIOContext as TSocketIOContext);
-//    end;
 
-    // always read the data! (e.g. RO use override of AsyncDispatchEvent to process data)
-    // if Assigned(OnBinData) or Assigned(OnTextData) then
   finally
     Request.Clear;
     Request.CustomHeaders.Clear;
@@ -866,7 +853,7 @@ begin
 
       {$REGION 'Socket timeout'}
       {$IF DEFINED(SOCKET_TIMEOUT)}
-{$IF DEFINED(MSWINDOWS)}
+      {$IF DEFINED(MSWINDOWS)}
       try
         InternalSetWriteTimeout(WriteTimeout);
       except
@@ -875,7 +862,7 @@ begin
           OutputDebugString('WriteTimeout not supported? error: ' + E.Message);
         {$ENDIF}
       end;
-{$ELSEIF DEFINED(ANDROID)}
+      {$ELSEIF DEFINED(ANDROID)}
 //      setting timeout may not be supported on some platforms
 //      Timeout not supported on Android
       try
@@ -890,7 +877,7 @@ begin
           end;
         {$ENDIF}
       end;
-{$ELSE}
+      {$ELSE}
       try
         InternalSetWriteTimeout(WriteTimeout);
       except
@@ -983,19 +970,6 @@ begin
     LWebSocket := IOHandler as IIOHandlerWebSocket;
     LWebSocket.LastPingTime := Now;
 
-    // socket.io?
-//    if SocketIOCompatible and LWebSocket.IsWebSocket then
-//    begin
-//      FSocketIO.Lock;
-//      try
-//        if (FSocketIOContext <> nil) then
-//          FSocketIO.WritePing(FSocketIOContext as TSocketIOContext);  //heartbeat socket.io message
-//      finally
-//        FSocketIO.Unlock;
-//      end
-//    end
-    // only websocket?
-//    else if not SocketIOCompatible and LWebSocket.IsWebSocket then
     if LWebSocket.IsWebSocket then
     begin
       if LWebSocket.TryLock then
@@ -1099,9 +1073,6 @@ begin
       LHandler.InputBuffer.Clear;
       LHandler.BusyUpgrading := False;
       LHandler.IsWebSocket   := False;
-      // close/disconnect internal socket
-      // ws := IndyClient.IOHandler as TIdIOHandlerWebSocket;
-      // ws.Close;  done in disconnect below
     end;
   Disconnect(False);
 end;
@@ -1114,28 +1085,16 @@ end;
 
 procedure TIdHTTPWebSocketClient.SetOnBinData(const AValue: TWebSocketMsgBin);
 begin
-//  if not Assigned(Value) and not Assigned(FOnTextData) then
-//    TIdWebSocketMultiReadThread.Instance.RemoveClient(Self);
 
   FOnMessageBin := AValue;
 
-//  if Assigned(Value) and
-//     (Self.IOHandler as TIdIOHandlerWebSocket).IsWebSocket
-//  then
-//    TIdWebSocketMultiReadThread.Instance.AddClient(Self);
 end;
 
 procedure TIdHTTPWebSocketClient.SetOnTextData(const AValue: TWebSocketMsgText);
 begin
-//  if not Assigned(Value) and not Assigned(FOnData) then
-//    TIdWebSocketMultiReadThread.Instance.RemoveClient(Self);
 
   FOnMessageText := AValue;
 
-//  if Assigned(Value) and
-//     (Self.IOHandler as TIdIOHandlerWebSocket).IsWebSocket
-//  then
-//    TIdWebSocketMultiReadThread.Instance.AddClient(Self);
 end;
 
 procedure TIdHTTPWebSocketClient.SetOnWebSocketClosing(
