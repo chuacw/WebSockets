@@ -23,8 +23,6 @@ type
     const AData: string);
 
 
-//  TIdSocketIOHandling_Ext = class(TIdSocketIOHandling)
-//  end;
 
   TIdHTTPWebSocketClient = class(TIdHTTP)
   private
@@ -197,11 +195,6 @@ begin
   IOHandler := LHandler;
   ManagedIOHandler := True;
 
-//  FSocketIO  := TIdSocketIOHandling_Ext.Create;
-//  FHeartBeat := TTimer.Create(nil);
-//  FHeartBeat.Enabled := False;
-//  FHeartBeat.OnTimer := HeartBeatTimer;
-
   FWriteTimeout  := 2 * 1000;
   ConnectTimeout := 30000;
 
@@ -245,8 +238,6 @@ begin
   TIdWebSocketDispatchThread.Instance.QueueEvent(
     procedure
     begin
-//      if FSocketIOCompatible then
-//        FSocketIO.ProcessSocketIORequest(FSocketIOContext as TSocketIOContext, AEvent)
       if Assigned(OnMessageText) then
         OnMessageText(Self, AEvent);
     end);
@@ -297,13 +288,6 @@ begin
       Exit;
     end;
 
-//    if SocketIOCompatible and
-//       not FSocketIOConnectBusy then
-//    begin
-//        TryUpgradeToWebSocket;
-//    end
-//    else
-//    begin
       // clear inputbuffer, otherwise it can't connect :(
       if (IOHandler <> nil) then IOHandler.Clear;
       inherited Connect;
@@ -328,11 +312,12 @@ begin
   LUri := TIdURI.Create(AURL);
   try
     // In case AURL consists of protocol://username:password@host:port
+    Request.URL := LUri.URI;
     Request.Username := LUri.Username;
     Request.Password := LUri.Password;
     if Request.Username <> '' then
       Request.BasicAuthentication := True;
-    LNewSSL := SameText(LUri.Protocol, 'wss');
+    LNewSSL := SameText(LUri.Protocol, 'wss') or SameText(LUri.Protocol, 'https');
     LNewHost := LUri.Host;
     LNewPort := 0;
 
@@ -627,6 +612,7 @@ var
   LStreamResponse: TMemoryStream;
   LLocked: boolean;
   LHandler: IIOHandlerWebSocket;
+  LURI: TIdURI;
 begin
   Assert((IOHandler = nil) or not IOHandler.IsWebSocket);
   // remove from thread during connection handling
@@ -648,6 +634,7 @@ begin
     end;
 
     LUserAgent := Request.UserAgent;
+    LURL := Request.URL;
     Request.Clear;
     Request.CustomHeaders.Clear;
     LStreamResponse.Clear;
@@ -661,6 +648,9 @@ begin
      Upgrade: websocket
      Sec-WebSocket-Version: 13 *)
 
+    Request.Accept := '*/*';
+    if Request.AcceptEncoding = '' then
+      Request.AcceptEncoding := 'deflate';
     // Connection: Upgrade
     Request.UserAgent := LUserAgent;
     Request.CustomHeaders.AddValue(SConnection, SKeepAlive+', ' + SUpgrade);
@@ -670,7 +660,7 @@ begin
       Request.BasicAuthentication := True;
 
     // Upgrade: websocket
-    Request.CustomHeaders.AddValue(SUpgrade, SWebSocket);
+    Request.CustomHeaders.AddValue('Upgrade', SWebSocket);
 
     Request.Pragma := 'no-cache';
     Request.CacheControl := 'no-cache';
@@ -694,18 +684,24 @@ begin
     FPeerPort := Port;
     Request.CacheControl := SNoCache;
     Request.Pragma := SNoCache;
-    Request.Host := Format('Host: %s:%d', [Host, Port]);
-    Request.CustomHeaders.AddValue(SHTTPOriginHeader,
-      Format('ws%s://%s:%d', [IfThen(UseSSL, 's', ''), Host, Port]));
-    DoCustomHeaders;
+    Request.Host := Format('%s:%d', [Host, Port]);
 
-    // ws://host:port/<resourcename>
+    // ws://username:password@host:port/<resourcename>
     // about resourcename, see: http://dev.w3.org/html5/websockets/ "Parsing WebSocket URLs"
     // sURL := Format('ws://%s:%d/%s', [Host, Port, WSResourceName]);
-    if WSResourceName.StartsWith('/') then
-      LWSResourceName := WSResourceName.Substring(1) else
-      LWSResourceName := WSResourceName;
-    LURL := Format('ws%s://%s:%d/%s', [IfThen(UseSSL, 's', ''), Host, Port, LWSResourceName]);
+    LURI := TIdURI.Create(LURL);
+    try
+      var SSuffix := '';
+      if UseSSL then
+        SSuffix := 's';
+      LWSResourceName := LURI.Document;
+      LURL := Format('http%s://%s:%d/%s', [SSuffix, Host, Port, LWSResourceName]);
+    finally
+      LURI.Free;
+    end;
+    Request.CustomHeaders.AddValue(SHTTPOriginHeader,
+      Format('http%s://%s:%d', [IfThen(UseSSL, 's', ''), Host, Port]));
+    DoCustomHeaders;
     ReadTimeout := Max(5 * 1000, ReadTimeout);
 
     { voorbeeld:
@@ -866,7 +862,7 @@ begin
 
       {$REGION 'Socket timeout'}
       {$IF DEFINED(SOCKET_TIMEOUT)}
-{$IF DEFINED(MSWINDOWS)}
+      {$IF DEFINED(MSWINDOWS)}
       try
         InternalSetWriteTimeout(WriteTimeout);
       except
@@ -875,7 +871,7 @@ begin
           OutputDebugString('WriteTimeout not supported? error: ' + E.Message);
         {$ENDIF}
       end;
-{$ELSEIF DEFINED(ANDROID)}
+      {$ELSEIF DEFINED(ANDROID)}
 //      setting timeout may not be supported on some platforms
 //      Timeout not supported on Android
       try

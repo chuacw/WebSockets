@@ -5,7 +5,13 @@ WebSockets for Delphi
 - Proxy support
 - Multithreaded
 
+# Tests
+Tested with   
+* wss://ws.postman-echo.com/raw
+* wss://echo.websocket.org/.ws
 
-Chee Wee, Chua  
-Singapore, Singapore,
-23 Dec 2024.
+
+
+CheeWee, Chua  
+Singapore, Singapore,  
+15 May 2026.
